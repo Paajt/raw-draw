@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useCallback } from 'react';
-import { Point, WSMessage } from '../lib/types';
+import { WSMessage, Point } from '@/src/lib/types';
 
 interface CanvasProps {
 	sendMessage: (message: WSMessage) => void;
@@ -18,12 +18,28 @@ export default function Canvas({
 	userColor,
 	userId,
 }: CanvasProps) {
+	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const isDrawing = useRef(false);
 	const lastPoint = useRef<Point | null>(null);
 	const pointBuffer = useRef<Point[]>([]);
 
-	// Hjälpfunktion: rita en linje mellan två punkter
+	// Gör canvas responsiv
+	useEffect(() => {
+		function resize() {
+			const canvas = canvasRef.current;
+			const container = containerRef.current;
+			if (!canvas || !container) return;
+
+			canvas.width = container.clientWidth;
+			canvas.height = Math.max(400, window.innerHeight - 250);
+		}
+
+		resize();
+		window.addEventListener('resize', resize);
+		return () => window.removeEventListener('resize', resize);
+	}, []);
+
 	const drawLine = useCallback(
 		(
 			ctx: CanvasRenderingContext2D,
@@ -37,19 +53,17 @@ export default function Canvas({
 			ctx.strokeStyle = color;
 			ctx.lineWidth = 3;
 			ctx.lineCap = 'round';
+			ctx.lineJoin = 'round';
 			ctx.stroke();
 		},
 		[]
 	);
 
-	// Lyssna på inkommande ritdata från andra användare
 	useEffect(() => {
 		const unsubscribe = subscribe((message) => {
 			if (message.type === 'draw') {
 				const ctx = canvasRef.current?.getContext('2d');
 				if (!ctx) return;
-
-				// Rita alla punkter i meddelandet
 				for (let i = 1; i < message.points.length; i++) {
 					drawLine(
 						ctx,
@@ -59,23 +73,16 @@ export default function Canvas({
 					);
 				}
 			}
-
 			if (message.type === 'clear-canvas') {
-				const ctx = canvasRef.current?.getContext('2d');
-				if (!ctx || !canvasRef.current) return;
-				ctx.clearRect(
-					0,
-					0,
-					canvasRef.current.width,
-					canvasRef.current.height
-				);
+				const canvas = canvasRef.current;
+				const ctx = canvas?.getContext('2d');
+				if (!ctx || !canvas) return;
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
 			}
 		});
-
 		return unsubscribe;
 	}, [subscribe, drawLine]);
 
-	// Hämta musposition relativt till canvas
 	const getMousePos = useCallback(
 		(e: React.MouseEvent<HTMLCanvasElement>): Point => {
 			const canvas = canvasRef.current!;
@@ -101,19 +108,14 @@ export default function Canvas({
 	const handleMouseMove = useCallback(
 		(e: React.MouseEvent<HTMLCanvasElement>) => {
 			if (!isDrawing.current) return;
-
 			const ctx = canvasRef.current?.getContext('2d');
 			if (!ctx || !lastPoint.current) return;
 
 			const currentPoint = getMousePos(e);
-
-			// Rita lokalt direkt (för att det ska kännas snabbt)
 			drawLine(ctx, lastPoint.current, currentPoint, userColor);
-
 			pointBuffer.current.push(currentPoint);
 			lastPoint.current = currentPoint;
 
-			// Skicka punkter var 5:e punkt (throttling)
 			if (pointBuffer.current.length >= 5) {
 				sendMessage({
 					type: 'draw',
@@ -121,7 +123,6 @@ export default function Canvas({
 					color: userColor,
 					userId: userId,
 				});
-				// Behåll sista punkten som start för nästa batch
 				pointBuffer.current = [currentPoint];
 			}
 		},
@@ -132,7 +133,6 @@ export default function Canvas({
 		if (!isDrawing.current) return;
 		isDrawing.current = false;
 
-		// Skicka kvarvarande punkter
 		if (pointBuffer.current.length > 1) {
 			sendMessage({
 				type: 'draw',
@@ -146,42 +146,66 @@ export default function Canvas({
 	}, [sendMessage, userColor, userId]);
 
 	return (
-		<div>
-			<div style={{ marginBottom: '8px' }}>
-				<span
+		<div ref={containerRef}>
+			<div
+				style={{
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					marginBottom: '8px',
+					fontSize: '12px',
+					color: 'var(--text-muted)',
+				}}
+			>
+				<div
 					style={{
-						display: 'inline-block',
-						width: '12px',
-						height: '12px',
-						borderRadius: '50%',
-						backgroundColor: isConnected ? '#2ecc71' : '#e74c3c',
-						marginRight: '8px',
-					}}
-				/>
-				{isConnected ? 'Connected' : 'Disconnected'}
-				<span
-					style={{
-						marginLeft: '16px',
-						color: userColor,
-						fontWeight: 'bold',
+						display: 'flex',
+						alignItems: 'center',
+						gap: '6px',
 					}}
 				>
-					● Your color
-				</span>
+					<div
+						style={{
+							width: '6px',
+							height: '6px',
+							borderRadius: '50%',
+							backgroundColor: isConnected
+								? '#22c55e'
+								: '#ef4444',
+						}}
+					/>
+					{isConnected ? 'Connected' : 'Disconnected'}
+				</div>
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: '6px',
+					}}
+				>
+					<div
+						style={{
+							width: '12px',
+							height: '12px',
+							borderRadius: '3px',
+							backgroundColor: userColor,
+						}}
+					/>
+					Your color
+				</div>
 			</div>
 			<canvas
 				ref={canvasRef}
-				width={800}
-				height={600}
 				onMouseDown={handleMouseDown}
 				onMouseMove={handleMouseMove}
 				onMouseUp={handleMouseUp}
 				onMouseLeave={handleMouseUp}
 				style={{
-					border: '2px solid #333',
-					borderRadius: '4px',
+					width: '100%',
+					border: '2px solid black',
+					borderRadius: '8px',
 					cursor: 'crosshair',
-					backgroundColor: '#fff',
+					backgroundColor: 'var(--surface)',
 				}}
 			/>
 		</div>

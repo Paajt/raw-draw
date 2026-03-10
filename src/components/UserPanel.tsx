@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { WSMessage } from '../lib/types';
+import { WSMessage } from '@/src/lib/types';
 
 interface User {
 	userId: string;
@@ -25,6 +25,7 @@ export default function UserPanel({
 		const unsubscribe = subscribe((message) => {
 			if (message.type === 'user-joined') {
 				setUsers((prev) => {
+					if (message.userId === currentUserId) return prev; // ← Ignorera sig själv
 					if (prev.find((u) => u.userId === message.userId))
 						return prev;
 					return [
@@ -39,38 +40,75 @@ export default function UserPanel({
 				);
 			}
 		});
-
 		return unsubscribe;
 	}, [subscribe]);
 
 	return (
 		<div
 			style={{
-				padding: '12px',
-				backgroundColor: '#f8f9fa',
-				borderRadius: '6px',
-				marginBottom: '12px',
+				display: 'flex',
+				alignItems: 'center',
+				gap: '16px',
+				padding: '10px 16px',
+				backgroundColor: 'var(--surface)',
+				border: '1px solid var(--border)',
+				borderRadius: '8px',
+				marginBottom: '16px',
+				fontSize: '13px',
 			}}
 		>
-			<strong>Connected users ({users.length + 1})</strong>
+			<span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
+				{users.length + 1} online
+			</span>
 			<div
 				style={{
-					marginTop: '8px',
-					display: 'flex',
-					gap: '12px',
-					flexWrap: 'wrap',
+					width: '1px',
+					height: '16px',
+					backgroundColor: 'var(--border)',
 				}}
-			>
-				<span style={{ color: currentUserColor, fontWeight: 'bold' }}>
-					● {currentUserId} (You)
-				</span>
-				{users.map((user) => (
+			/>
+			<div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: '4px',
+					}}
+				>
+					<div
+						style={{
+							width: '8px',
+							height: '8px',
+							borderRadius: '50%',
+							backgroundColor: currentUserColor,
+						}}
+					/>
+					<span style={{ fontWeight: 500 }}>{currentUserId}</span>
 					<span
-						key={user.userId}
-						style={{ color: user.color, fontWeight: 'bold' }}
+						style={{ color: 'var(--text-muted)', fontSize: '11px' }}
 					>
-						● {user.userId}
+						(you)
 					</span>
+				</div>
+				{users.map((user) => (
+					<div
+						key={user.userId}
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '4px',
+						}}
+					>
+						<div
+							style={{
+								width: '8px',
+								height: '8px',
+								borderRadius: '50%',
+								backgroundColor: user.color,
+							}}
+						/>
+						<span style={{ fontWeight: 500 }}>{user.userId}</span>
+					</div>
 				))}
 			</div>
 		</div>

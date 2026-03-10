@@ -29,6 +29,18 @@ app.prepare().then(() => {
 	wss.on('connection', (ws) => {
 		console.log('New client connected');
 
+		// Skicka befintliga användare till den nya klienten
+		users.forEach((user) => {
+			ws.send(
+				JSON.stringify({
+					type: 'user-joined',
+					userId: user.userId,
+					color: user.color,
+					userCount: users.size,
+				})
+			);
+		});
+
 		ws.on('message', (data) => {
 			const message = JSON.parse(data.toString());
 
@@ -86,10 +98,26 @@ app.prepare().then(() => {
 		async (req: IncomingMessage, res: ServerResponse) => {
 			// Hantera våra API-routes direkt i servern
 			if (req.method === 'POST' && req.url === '/api/clear') {
-				broadcast(JSON.stringify({ type: 'clear-canvas' }));
+				// Skicka countdown-alarm
+				broadcast(
+					JSON.stringify({
+						type: 'alarm',
+						message: 'Canvas rensas om 5 sekunder...',
+						severity: 'error',
+					})
+				);
+
+				// Vänta 5 sek, sen rensa
+				setTimeout(() => {
+					broadcast(JSON.stringify({ type: 'clear-canvas' }));
+				}, 5000);
+
 				res.writeHead(200, { 'Content-Type': 'application/json' });
 				res.end(
-					JSON.stringify({ success: true, message: 'Canvas cleared' })
+					JSON.stringify({
+						success: true,
+						message: 'Canvas will clear in 5 seconds',
+					})
 				);
 				return;
 			}
