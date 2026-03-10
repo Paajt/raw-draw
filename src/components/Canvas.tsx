@@ -66,7 +66,7 @@ export default function Canvas({
 			const ctx = canvas.getContext('2d');
 
 			canvas.width = container.clientWidth;
-			canvas.height = Math.max(400, window.innerHeight - 250);
+			canvas.height = Math.max(300, window.innerHeight - 200);
 
 			// Rita om all historik
 			if (ctx) {
@@ -193,6 +193,63 @@ export default function Canvas({
 		lastPoint.current = null;
 	}, [sendMessage, userColor, userId]);
 
+	const getTouchPos = useCallback(
+		(e: React.TouchEvent<HTMLCanvasElement>): Point => {
+			const canvas = canvasRef.current!;
+			const rect = canvas.getBoundingClientRect();
+			const touch = e.touches[0];
+			return {
+				x: touch.clientX - rect.left,
+				y: touch.clientY - rect.top,
+			};
+		},
+		[]
+	);
+
+	const handleTouchStart = useCallback(
+		(e: React.TouchEvent<HTMLCanvasElement>) => {
+			e.preventDefault();
+			isDrawing.current = true;
+			const point = getTouchPos(e);
+			lastPoint.current = point;
+			pointBuffer.current = [point];
+		},
+		[getTouchPos]
+	);
+
+	const handleTouchMove = useCallback(
+		(e: React.TouchEvent<HTMLCanvasElement>) => {
+			e.preventDefault();
+			if (!isDrawing.current) return;
+			const ctx = canvasRef.current?.getContext('2d');
+			if (!ctx || !lastPoint.current) return;
+
+			const currentPoint = getTouchPos(e);
+			drawLine(ctx, lastPoint.current, currentPoint, userColor);
+			pointBuffer.current.push(currentPoint);
+			lastPoint.current = currentPoint;
+
+			if (pointBuffer.current.length >= 5) {
+				sendMessage({
+					type: 'draw',
+					points: pointBuffer.current.map(toNormalized),
+					color: userColor,
+					userId: userId,
+				});
+				drawHistory.current.push({
+					points: pointBuffer.current.map(toNormalized),
+					color: userColor,
+				});
+				pointBuffer.current = [currentPoint];
+			}
+		},
+		[getTouchPos, drawLine, userColor, userId, sendMessage, toNormalized]
+	);
+
+	const handleTouchEnd = useCallback(() => {
+		handleMouseUp();
+	}, [handleMouseUp]);
+
 	return (
 		<div ref={containerRef}>
 			<div
@@ -200,8 +257,8 @@ export default function Canvas({
 					display: 'flex',
 					alignItems: 'center',
 					justifyContent: 'space-between',
-					marginBottom: '8px',
-					fontSize: '12px',
+					marginBottom: '6px',
+					fontSize: '11px',
 					color: 'var(--text-muted)',
 				}}
 			>
@@ -248,12 +305,16 @@ export default function Canvas({
 				onMouseMove={handleMouseMove}
 				onMouseUp={handleMouseUp}
 				onMouseLeave={handleMouseUp}
+				onTouchStart={handleTouchStart}
+				onTouchMove={handleTouchMove}
+				onTouchEnd={handleTouchEnd}
 				style={{
 					width: '100%',
 					border: '2px solid black',
 					borderRadius: '8px',
 					cursor: 'crosshair',
 					backgroundColor: 'var(--surface)',
+					touchAction: 'none',
 				}}
 			/>
 		</div>

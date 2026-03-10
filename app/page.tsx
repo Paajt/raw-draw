@@ -24,7 +24,7 @@ export default function Home() {
 	return (
 		<main
 			style={{
-				padding: '24px 32px',
+				padding: '16px',
 				maxWidth: '1000px',
 				margin: '0 auto',
 			}}
@@ -32,17 +32,17 @@ export default function Home() {
 			<header
 				style={{
 					display: 'flex',
-					alignItems: 'center',
+					alignItems: 'flex-start',
 					justifyContent: 'space-between',
-					marginBottom: '24px',
-					paddingBottom: '16px',
+					marginBottom: '16px',
+					paddingBottom: '12px',
 					borderBottom: '1px solid var(--border)',
 				}}
 			>
 				<div>
 					<h1
 						style={{
-							fontSize: '22px',
+							fontSize: 'clamp(18px, 4vw, 22px)',
 							fontWeight: 700,
 							letterSpacing: '-0.02em',
 						}}
@@ -51,7 +51,7 @@ export default function Home() {
 					</h1>
 					<p
 						style={{
-							fontSize: '13px',
+							fontSize: '12px',
 							color: 'var(--text-muted)',
 							marginTop: '2px',
 						}}

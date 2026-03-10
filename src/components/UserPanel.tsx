@@ -48,13 +48,14 @@ export default function UserPanel({
 			style={{
 				display: 'flex',
 				alignItems: 'center',
-				gap: '16px',
-				padding: '10px 16px',
+				gap: '8px',
+				padding: '8px 12px',
 				backgroundColor: 'var(--surface)',
 				border: '1px solid var(--border)',
 				borderRadius: '8px',
-				marginBottom: '16px',
-				fontSize: '13px',
+				marginBottom: '12px',
+				fontSize: '12px',
+				flexWrap: 'wrap',
 			}}
 		>
 			<span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
@@ -67,7 +68,7 @@ export default function UserPanel({
 					backgroundColor: 'var(--border)',
 				}}
 			/>
-			<div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+			<div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
 				<div
 					style={{
 						display: 'flex',

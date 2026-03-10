@@ -17,6 +17,11 @@ export const metadata: Metadata = {
 	description: 'Raw draw in your meetings',
 };
 
+export const viewport = {
+	width: 'device-width',
+	initialScale: 1,
+};
+
 export default function RootLayout({
 	children,
 }: Readonly<{
