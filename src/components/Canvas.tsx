@@ -250,6 +250,23 @@ export default function Canvas({
 		handleMouseUp();
 	}, [handleMouseUp]);
 
+	const handleSave = useCallback(() => {
+		const canvas = canvasRef.current;
+		if (!canvas) return;
+
+		const now = new Date();
+		const timestamp = now
+			.toISOString()
+			.replace(/T/, '_')
+			.replace(/:/g, '-')
+			.replace(/\..+/, '');
+
+		const link = document.createElement('a');
+		link.download = `raw-draw_${timestamp}.png`;
+		link.href = canvas.toDataURL('image/png');
+		link.click();
+	}, []);
+
 	return (
 		<div ref={containerRef}>
 			<div
@@ -288,6 +305,20 @@ export default function Canvas({
 						gap: '6px',
 					}}
 				>
+					<button
+						onClick={handleSave}
+						style={{
+							background: 'lightblue',
+							border: '2px solid var(--border)',
+							borderRadius: '4px',
+							padding: '2px 8px',
+							fontSize: '11px',
+							color: 'var(--text-muted)',
+							cursor: 'pointer',
+						}}
+					>
+						Download PNG
+					</button>
 					<div
 						style={{
 							width: '12px',
