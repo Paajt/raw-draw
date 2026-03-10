@@ -1,29 +1,27 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { useWebSocket } from '../lib/useWebSocket';
-import { Point } from '../lib/types';
+import { useRef, useEffect, useCallback } from 'react';
+import { Point, WSMessage } from '../lib/types';
 
-export default function Canvas() {
+interface CanvasProps {
+	sendMessage: (message: WSMessage) => void;
+	subscribe: (handler: (message: WSMessage) => void) => () => void;
+	isConnected: boolean;
+	userColor: string;
+	userId: string;
+}
+
+export default function Canvas({
+	sendMessage,
+	subscribe,
+	isConnected,
+	userColor,
+	userId,
+}: CanvasProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const isDrawing = useRef(false);
 	const lastPoint = useRef<Point | null>(null);
 	const pointBuffer = useRef<Point[]>([]);
-
-	const { sendMessage, onMessage, isConnected } = useWebSocket();
-	const [userColor] = useState(() => {
-		// Generera en slumpmässig färg för denna användare
-		const colors = [
-			'#e74c3c',
-			'#3498db',
-			'#2ecc71',
-			'#f39c12',
-			'#9b59b6',
-			'#1abc9c',
-		];
-		return colors[Math.floor(Math.random() * colors.length)];
-	});
-	const [userId] = useState(() => Math.random().toString(36).substring(2, 8));
 
 	// Hjälpfunktion: rita en linje mellan två punkter
 	const drawLine = useCallback(
@@ -46,7 +44,7 @@ export default function Canvas() {
 
 	// Lyssna på inkommande ritdata från andra användare
 	useEffect(() => {
-		onMessage((message) => {
+		const unsubscribe = subscribe((message) => {
 			if (message.type === 'draw') {
 				const ctx = canvasRef.current?.getContext('2d');
 				if (!ctx) return;
@@ -73,7 +71,9 @@ export default function Canvas() {
 				);
 			}
 		});
-	}, [onMessage, drawLine]);
+
+		return unsubscribe;
+	}, [subscribe, drawLine]);
 
 	// Hämta musposition relativt till canvas
 	const getMousePos = useCallback(

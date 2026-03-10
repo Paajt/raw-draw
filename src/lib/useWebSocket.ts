@@ -3,7 +3,10 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { WSMessage } from './types';
 
+type MessageHandler = (message: WSMessage) => void;
+
 export function useWebSocket() {
+	const handlersRef = useRef<Set<MessageHandler>>(new Set());
 	const wsRef = useRef<WebSocket | null>(null);
 	const [isConnected, setIsConnected] = useState(false);
 
@@ -18,6 +21,12 @@ export function useWebSocket() {
 		ws.onopen = () => {
 			console.log('WebSocket connected');
 			setIsConnected(true);
+		};
+
+		ws.onmessage = (event) => {
+			const message = JSON.parse(event.data) as WSMessage;
+			// Anropa ALLA registrerade handlers
+			handlersRef.current.forEach((handler) => handler(message));
 		};
 
 		ws.onclose = () => {
@@ -38,15 +47,13 @@ export function useWebSocket() {
 		}
 	}, []);
 
-	// Funktion för att lyssna på meddelanden
-	const onMessage = useCallback((handler: (message: WSMessage) => void) => {
-		if (wsRef.current) {
-			wsRef.current.onmessage = (event) => {
-				const message = JSON.parse(event.data) as WSMessage;
-				handler(message);
-			};
-		}
+	// Registrera en lyssnare — returnerar en cleanup-funktion
+	const subscribe = useCallback((handler: MessageHandler) => {
+		handlersRef.current.add(handler);
+		return () => {
+			handlersRef.current.delete(handler);
+		};
 	}, []);
 
-	return { sendMessage, onMessage, isConnected };
+	return { sendMessage, subscribe, isConnected };
 }

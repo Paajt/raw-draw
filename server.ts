@@ -20,10 +20,34 @@ app.prepare().then(() => {
 		});
 	}
 
+	// Håll koll på anslutna användare
+	const users = new Map<
+		import('ws').WebSocket,
+		{ userId: string; color: string }
+	>();
+
 	wss.on('connection', (ws) => {
 		console.log('New client connected');
 
 		ws.on('message', (data) => {
+			const message = JSON.parse(data.toString());
+
+			// Registrera användare vid första draw-meddelandet
+			if (message.type === 'draw' && !users.has(ws)) {
+				users.set(ws, { userId: message.userId, color: message.color });
+
+				// Meddela alla att en ny användare anslöt
+				broadcast(
+					JSON.stringify({
+						type: 'user-joined',
+						userId: message.userId,
+						color: message.color,
+						userCount: users.size,
+					})
+				);
+			}
+
+			// Vidarebefordra till alla andra
 			wss.clients.forEach((client) => {
 				if (client !== ws && client.readyState === WebSocket.OPEN) {
 					client.send(data.toString());
@@ -32,6 +56,19 @@ app.prepare().then(() => {
 		});
 
 		ws.on('close', () => {
+			const user = users.get(ws);
+			users.delete(ws);
+
+			if (user) {
+				broadcast(
+					JSON.stringify({
+						type: 'user-left',
+						userId: user.userId,
+						userCount: users.size,
+					})
+				);
+			}
+
 			console.log('Client disconnected');
 		});
 	});
