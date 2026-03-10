@@ -26,8 +26,22 @@ app.prepare().then(() => {
 		{ userId: string; color: string }
 	>();
 
+	// SSE: Håll koll på anslutna SSE-klienter och händelselogg
+	const sseClients = new Set<import('http').ServerResponse>();
+	const eventLog: { time: string; event: string }[] = [];
+
+	function logEvent(event: string) {
+		const entry = { time: new Date().toISOString(), event };
+		eventLog.push(entry);
+		// Skicka till alla SSE-klienter
+		sseClients.forEach((res) => {
+			res.write(`data: ${JSON.stringify(entry)}\n\n`);
+		});
+	}
+
 	wss.on('connection', (ws) => {
 		console.log('New client connected');
+		logEvent('New client connected');
 
 		// Skicka befintliga användare till den nya klienten
 		users.forEach((user) => {
@@ -47,6 +61,9 @@ app.prepare().then(() => {
 			// Registrera användare vid första draw-meddelandet
 			if (message.type === 'draw' && !users.has(ws)) {
 				users.set(ws, { userId: message.userId, color: message.color });
+				logEvent(
+					`${message.userId} joined with color ${message.color}`
+				);
 
 				// Meddela alla att en ny användare anslöt
 				broadcast(
@@ -72,6 +89,7 @@ app.prepare().then(() => {
 			users.delete(ws);
 
 			if (user) {
+				logEvent(`${user.userId} disconnected`);
 				broadcast(
 					JSON.stringify({
 						type: 'user-left',
@@ -97,7 +115,29 @@ app.prepare().then(() => {
 	const server = createServer(
 		async (req: IncomingMessage, res: ServerResponse) => {
 			// Hantera våra API-routes direkt i servern
+			if (req.method === 'GET' && req.url === '/api/events') {
+				res.writeHead(200, {
+					'Content-Type': 'text/event-stream',
+					'Cache-Control': 'no-cache',
+					Connection: 'keep-alive',
+				});
+
+				// Skicka befintlig historik
+				eventLog.forEach((entry) => {
+					res.write(`data: ${JSON.stringify(entry)}\n\n`);
+				});
+
+				sseClients.add(res);
+
+				req.on('close', () => {
+					sseClients.delete(res);
+				});
+
+				return;
+			}
+
 			if (req.method === 'POST' && req.url === '/api/clear') {
+				logEvent('Canvas clear triggered (5s countdown)');
 				// Skicka countdown-alarm
 				broadcast(
 					JSON.stringify({
@@ -127,6 +167,8 @@ app.prepare().then(() => {
 				const body = JSON.parse(raw || '{}');
 				const message = body.message || 'Alarm triggered';
 				const severity = body.severity || 'info';
+
+				logEvent(`Alarm: ${message} (${severity})`);
 
 				broadcast(JSON.stringify({ type: 'alarm', message, severity }));
 				res.writeHead(200, { 'Content-Type': 'application/json' });

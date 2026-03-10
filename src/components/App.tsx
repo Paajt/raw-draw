@@ -5,6 +5,7 @@ import { useWebSocket } from '@/src/lib/useWebSocket';
 import Canvas from './Canvas';
 import AlarmBanner from './AlarmBanner';
 import UserPanel from './UserPanel';
+import EventLog from './EventLog';
 
 export default function App() {
 	const { sendMessage, subscribe, isConnected } = useWebSocket();
@@ -36,6 +37,7 @@ export default function App() {
 				userId={userId}
 			/>
 			<AlarmBanner subscribe={subscribe} />
+			<EventLog />
 		</>
 	);
 }
