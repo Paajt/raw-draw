@@ -43,6 +43,17 @@ export default function Canvas({
 		},
 		[]
 	);
+	// Konvertera pixlar normaliserat (0-1)
+	const toNormalized = useCallback((p: Point): Point => {
+		const canvas = canvasRef.current!;
+		return { x: p.x / canvas.width, y: p.y / canvas.height };
+	}, []);
+
+	// Konvertera normaliserat (0-1) pixlar
+	const toPixels = useCallback((p: Point): Point => {
+		const canvas = canvasRef.current!;
+		return { x: p.x * canvas.width, y: p.y * canvas.height };
+	}, []);
 
 	// Gör canvas responsiv
 	useEffect(() => {
@@ -60,11 +71,12 @@ export default function Canvas({
 			// Rita om all historik
 			if (ctx) {
 				drawHistory.current.forEach((stroke) => {
-					for (let i = 1; i < stroke.points.length; i++) {
+					const pixelPoints = stroke.points.map(toPixels);
+					for (let i = 1; i < pixelPoints.length; i++) {
 						drawLine(
 							ctx,
-							stroke.points[i - 1],
-							stroke.points[i],
+							pixelPoints[i - 1],
+							pixelPoints[i],
 							stroke.color
 						);
 					}
@@ -82,15 +94,17 @@ export default function Canvas({
 			if (message.type === 'draw') {
 				const ctx = canvasRef.current?.getContext('2d');
 				if (!ctx) return;
-				for (let i = 1; i < message.points.length; i++) {
+				// Mottagna punkter är normaliserade, konvertera till pixlar
+				const pixelPoints = message.points.map(toPixels);
+				for (let i = 1; i < pixelPoints.length; i++) {
 					drawLine(
 						ctx,
-						message.points[i - 1],
-						message.points[i],
+						pixelPoints[i - 1],
+						pixelPoints[i],
 						message.color
 					);
 				}
-				// Spara i historik
+				// Redan normaliserat — spara direkt
 				drawHistory.current.push({
 					points: message.points,
 					color: message.color,
@@ -143,13 +157,13 @@ export default function Canvas({
 			if (pointBuffer.current.length >= 5) {
 				sendMessage({
 					type: 'draw',
-					points: pointBuffer.current,
+					points: pointBuffer.current.map(toNormalized),
 					color: userColor,
 					userId: userId,
 				});
 				// Spara i historik
 				drawHistory.current.push({
-					points: [...pointBuffer.current],
+					points: pointBuffer.current.map(toNormalized),
 					color: userColor,
 				});
 				pointBuffer.current = [currentPoint];
@@ -165,13 +179,13 @@ export default function Canvas({
 		if (pointBuffer.current.length > 1) {
 			sendMessage({
 				type: 'draw',
-				points: pointBuffer.current,
+				points: pointBuffer.current.map(toNormalized),
 				color: userColor,
 				userId: userId,
 			});
 			// Spara i historik
 			drawHistory.current.push({
-				points: [...pointBuffer.current],
+				points: pointBuffer.current.map(toNormalized),
 				color: userColor,
 			});
 		}

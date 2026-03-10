@@ -1,4 +1,4 @@
-// En enskild punkt på canvasen
+// Punkter skickas normaliserade (0-1) via WebSocket
 export interface Point {
 	x: number;
 	y: number;
