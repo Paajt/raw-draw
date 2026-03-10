@@ -1,5 +1,5 @@
-import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
 import next from 'next';
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -9,19 +9,23 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-	const server = createServer((req, res) => {
-		handle(req, res);
-	});
-
-	// Skapa WS-server WITHOUT att koppla den till HTTP-servern direkt
 	const wss = new WebSocketServer({ noServer: true });
+
+	// Broadcast till alla anslutna klienter
+	function broadcast(data: string) {
+		wss.clients.forEach((client) => {
+			if (client.readyState === WebSocket.OPEN) {
+				client.send(data);
+			}
+		});
+	}
 
 	wss.on('connection', (ws) => {
 		console.log('New client connected');
 
 		ws.on('message', (data) => {
 			wss.clients.forEach((client) => {
-				if (client !== ws && client.readyState === 1) {
+				if (client !== ws && client.readyState === WebSocket.OPEN) {
 					client.send(data.toString());
 				}
 			});
@@ -32,14 +36,52 @@ app.prepare().then(() => {
 		});
 	});
 
-	// Fånga BARA upgrade-requests till /ws
+	// Hjälpfunktion för att läsa request body
+	function readBody(req: IncomingMessage): Promise<string> {
+		return new Promise((resolve) => {
+			let body = '';
+			req.on('data', (chunk) => (body += chunk));
+			req.on('end', () => resolve(body));
+		});
+	}
+
+	const server = createServer(
+		async (req: IncomingMessage, res: ServerResponse) => {
+			// Hantera våra API-routes direkt i servern
+			if (req.method === 'POST' && req.url === '/api/clear') {
+				broadcast(JSON.stringify({ type: 'clear-canvas' }));
+				res.writeHead(200, { 'Content-Type': 'application/json' });
+				res.end(
+					JSON.stringify({ success: true, message: 'Canvas cleared' })
+				);
+				return;
+			}
+
+			if (req.method === 'POST' && req.url === '/api/alarm') {
+				const raw = await readBody(req);
+				const body = JSON.parse(raw || '{}');
+				const message = body.message || 'Alarm triggered';
+				const severity = body.severity || 'info';
+
+				broadcast(JSON.stringify({ type: 'alarm', message, severity }));
+				res.writeHead(200, { 'Content-Type': 'application/json' });
+				res.end(
+					JSON.stringify({ success: true, message: 'Alarm sent' })
+				);
+				return;
+			}
+
+			// Allt annat → Next.js
+			handle(req, res);
+		}
+	);
+
 	server.on('upgrade', (req, socket, head) => {
 		if (req.url === '/ws') {
 			wss.handleUpgrade(req, socket, head, (ws) => {
 				wss.emit('connection', ws, req);
 			});
 		}
-		// Alla andra upgrade-requests (t.ex. HMR) lämnas ifred
 	});
 
 	server.listen(port, () => {
