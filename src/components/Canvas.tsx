@@ -23,22 +23,7 @@ export default function Canvas({
 	const isDrawing = useRef(false);
 	const lastPoint = useRef<Point | null>(null);
 	const pointBuffer = useRef<Point[]>([]);
-
-	// Gör canvas responsiv
-	useEffect(() => {
-		function resize() {
-			const canvas = canvasRef.current;
-			const container = containerRef.current;
-			if (!canvas || !container) return;
-
-			canvas.width = container.clientWidth;
-			canvas.height = Math.max(400, window.innerHeight - 250);
-		}
-
-		resize();
-		window.addEventListener('resize', resize);
-		return () => window.removeEventListener('resize', resize);
-	}, []);
+	const drawHistory = useRef<{ points: Point[]; color: string }[]>([]);
 
 	const drawLine = useCallback(
 		(
@@ -59,6 +44,39 @@ export default function Canvas({
 		[]
 	);
 
+	// Gör canvas responsiv
+	useEffect(() => {
+		function resize() {
+			const canvas = canvasRef.current;
+			const container = containerRef.current;
+			if (!canvas || !container) return;
+
+			// Spara nuvarande bild temporärt
+			const ctx = canvas.getContext('2d');
+
+			canvas.width = container.clientWidth;
+			canvas.height = Math.max(400, window.innerHeight - 250);
+
+			// Rita om all historik
+			if (ctx) {
+				drawHistory.current.forEach((stroke) => {
+					for (let i = 1; i < stroke.points.length; i++) {
+						drawLine(
+							ctx,
+							stroke.points[i - 1],
+							stroke.points[i],
+							stroke.color
+						);
+					}
+				});
+			}
+		}
+
+		resize();
+		window.addEventListener('resize', resize);
+		return () => window.removeEventListener('resize', resize);
+	}, [drawLine]);
+
 	useEffect(() => {
 		const unsubscribe = subscribe((message) => {
 			if (message.type === 'draw') {
@@ -72,12 +90,18 @@ export default function Canvas({
 						message.color
 					);
 				}
+				// Spara i historik
+				drawHistory.current.push({
+					points: message.points,
+					color: message.color,
+				});
 			}
 			if (message.type === 'clear-canvas') {
 				const canvas = canvasRef.current;
 				const ctx = canvas?.getContext('2d');
 				if (!ctx || !canvas) return;
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				drawHistory.current = []; // Rensa historik också
 			}
 		});
 		return unsubscribe;
@@ -123,6 +147,11 @@ export default function Canvas({
 					color: userColor,
 					userId: userId,
 				});
+				// Spara i historik
+				drawHistory.current.push({
+					points: [...pointBuffer.current],
+					color: userColor,
+				});
 				pointBuffer.current = [currentPoint];
 			}
 		},
@@ -139,6 +168,11 @@ export default function Canvas({
 				points: pointBuffer.current,
 				color: userColor,
 				userId: userId,
+			});
+			// Spara i historik
+			drawHistory.current.push({
+				points: [...pointBuffer.current],
+				color: userColor,
 			});
 		}
 		pointBuffer.current = [];
