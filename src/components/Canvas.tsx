@@ -87,7 +87,7 @@ export default function Canvas({
 		resize();
 		window.addEventListener('resize', resize);
 		return () => window.removeEventListener('resize', resize);
-	}, [drawLine]);
+	}, [drawLine, toPixels]);
 
 	useEffect(() => {
 		const unsubscribe = subscribe((message) => {
@@ -119,7 +119,7 @@ export default function Canvas({
 			}
 		});
 		return unsubscribe;
-	}, [subscribe, drawLine]);
+	}, [subscribe, drawLine, toPixels]);
 
 	const getMousePos = useCallback(
 		(e: React.MouseEvent<HTMLCanvasElement>): Point => {
@@ -169,7 +169,7 @@ export default function Canvas({
 				pointBuffer.current = [currentPoint];
 			}
 		},
-		[getMousePos, drawLine, userColor, userId, sendMessage]
+		[getMousePos, drawLine, userColor, userId, sendMessage, toNormalized]
 	);
 
 	const handleMouseUp = useCallback(() => {
@@ -191,7 +191,7 @@ export default function Canvas({
 		}
 		pointBuffer.current = [];
 		lastPoint.current = null;
-	}, [sendMessage, userColor, userId]);
+	}, [sendMessage, userColor, userId, toNormalized]);
 
 	const getTouchPos = useCallback(
 		(e: React.TouchEvent<HTMLCanvasElement>): Point => {

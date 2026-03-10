@@ -41,7 +41,7 @@ export default function UserPanel({
 			}
 		});
 		return unsubscribe;
-	}, [subscribe]);
+	}, [subscribe, currentUserId]);
 
 	return (
 		<div
